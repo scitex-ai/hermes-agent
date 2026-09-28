@@ -843,6 +843,12 @@ def _cmd_steer(rid, params, session, name, arg):
     if agent and hasattr(agent, "steer"):
         with contextlib.suppress(Exception):
             if agent.steer(arg):
+                # _wire_session_agent owns acceptance rendering (one broadcast
+                # 'Steer queued' notice to every attached client). Keep a
+                # fallback for bare agents without that wiring (mirrors
+                # hermes_cli/cli_loops_mixin._cmd_steer).
+                if callable(getattr(agent, "_steer_accepted_callback", None)):
+                    return _exec_out(rid, "")
                 return _exec_out(rid, f"⏩ Steer queued — arrives after the next tool call: {shown}")
     return _ok(rid, {"type": "send", "message": arg})  # turn still building / steer refused: next-turn message
 
