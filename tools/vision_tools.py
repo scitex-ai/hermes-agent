@@ -786,6 +786,25 @@ async def _run_analysis(
                     logger.warning("Could not delete temporary file: %s", cleanup_error, exc_info=True)
 
 
+def _vision_route_label(model: Optional[str]) -> Optional[str]:
+    """Best-effort "provider/model" the vision aux call would use, for errors.
+
+    Never raises, never constructs network clients (probe mode): error
+    attribution only. Returns None when even that fails, and the caller
+    then reports the raw error uncascaded.
+    """
+    try:
+        from agent.auxiliary_client import aux_probe_mode, resolve_vision_provider_client
+        with aux_probe_mode():
+            if model:
+                _requested, _client, _resolved = resolve_vision_provider_client(model=model)
+            else:
+                _requested, _client, _resolved = resolve_vision_provider_client()
+        return f"{_requested or 'auto'}/{_resolved or model or '?'}"
+    except Exception:
+        return None
+
+
 async def vision_analyze_tool(
     image_url: str, user_prompt: str, model: str = None,
     task_id: Optional[str] = None, region: Optional[list] = None) -> str:
@@ -814,7 +833,10 @@ async def vision_analyze_tool(
             response = await async_call_llm(**call_kwargs)
         except Exception as _api_err:
             if not (_is_image_size_error(_api_err) and len(image_data_url) > _RESIZE_TARGET_BYTES):
-                raise
+                _route = _vision_route_label(model)
+                if _route is None:
+                    raise
+                raise RuntimeError(f"vision via {_route} failed: {_api_err}") from _api_err
             logger.info(
                 "API rejected image (%.1f MB, likely too large); auto-resizing to ~%.0f MB and retrying...",
                 len(image_data_url) / (1024 * 1024), _RESIZE_TARGET_BYTES / (1024 * 1024))
