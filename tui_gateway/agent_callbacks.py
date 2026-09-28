@@ -132,6 +132,15 @@ def _agent_notice_update(sid: str, notice) -> None:
            "ttl_ms": notice.ttl_ms, "key": notice.key, "id": notice.id})
 
 
+def _agent_steer_accepted_notice(sid: str, text: str) -> None:
+    """Single rendering owner for an accepted steer (mirrors the CLI's
+    ``_steer_accepted_callback`` wiring in hermes_cli/cli_agent_setup_mixin.py):
+    one 'Steer queued' status notice to every attached TUI client. Delivery
+    semantics are unchanged — steer() commits before this fires, and observer
+    failure never rolls the acceptance back (swallowed in interrupt_control)."""
+    _agent_status_update(sid, "steer", f"⏩ Steer queued: {text}")
+
+
 def _emit_reasoning_delta(sid: str, text: str) -> None:
     if not _session_show_reasoning(sid):
         return

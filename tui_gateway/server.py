@@ -1028,6 +1028,13 @@ def _wire_session_agent(sid: str, key: str, agent) -> bool:
     with contextlib.suppress(Exception):  # bare agents without the attribute must not break startup
         agent.background_review_callback = lambda message, _sid=sid: _emit("review.summary", _sid, {"text": str(message)})
         agent.memory_notifications = _load_memory_notifications()
+        # Single rendering owner for accepted steers (mirrors the CLI's
+        # _steer_accepted_callback in hermes_cli/cli_agent_setup_mixin.py): one
+        # 'Steer queued' status notice to every attached TUI client. CLI and
+        # gateway sessions own disjoint agents, so the rails never double-fire.
+        agent._steer_accepted_callback = (
+            lambda text, _sid=sid: _agent_steer_accepted_notice(_sid, str(text))
+        )
     return notify_registered
 
 
