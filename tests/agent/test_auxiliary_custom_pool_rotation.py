@@ -29,6 +29,16 @@ def test_custom_client_follows_pool_rotation(tmp_path, monkeypatch, pool_key):
     after, _ = aux._get_cached_client("custom:judge", "example-model")
     assert after.api_key == replacement.runtime_api_key != before.api_key
 
+    other = tmp_path / "other-profile"
+    other.mkdir()
+    (other / "config.yaml").write_text((tmp_path / "config.yaml").read_text())
+    monkeypatch.setenv("HERMES_HOME", str(other))
+    write_credential_pool(pool_key, [{**rows[0], "access_token": "other-profile-key"}])
+    isolated, _ = aux._get_cached_client("custom:judge", "example-model")
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path))
+    returned, _ = aux._get_cached_client("custom:judge", "example-model")
+    assert isolated.api_key == "other-profile-key" and returned.api_key == after.api_key
+
 
 def test_subscription_rejection_rotates_named_custom_pool(tmp_path, monkeypatch):
     monkeypatch.setenv("HERMES_HOME", str(tmp_path))
