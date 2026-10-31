@@ -180,6 +180,17 @@ When an auxiliary task is configured with provider `main`, Hermes resolves that 
 - custom endpoints saved via `hermes model` / `config.yaml` also work
 - auxiliary routing can tell the difference between a real saved custom endpoint and the OpenRouter fallback
 
+Named custom auxiliary clients use the same populated credential pool as client
+construction: the durable provider slug first, then its legacy `custom:<slug>`
+identity. Cache fingerprints follow that pool's selected credential, so a main
+client's pool rotation invalidates an auxiliary client holding the old key.
+Subscription-required HTTP 403 responses enter credential-pool recovery rather
+than being retried indefinitely with the rejected key.
+
+Goal judge failures are logged in the active profile's `logs/agent.log`. After
+five consecutive API failures, the goal pauses and points to that profile's
+configuration; the warning does not prescribe a different provider or model.
+
 ## Fallback models
 
 Hermes supports a configured fallback provider chain — a list of `(provider, model)` entries tried in order when the primary model encounters errors. The legacy single-pair `fallback_model` dict is still accepted for back-compat (and migrated on first write).

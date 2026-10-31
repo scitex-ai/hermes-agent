@@ -1021,11 +1021,20 @@ def _to_openai_base_url(base_url: str) -> str:
 def _load_pool_with_credentials(provider: str, note: str = "") -> Optional[Any]:
     """``load_pool(provider)`` when it has credentials, else None (never raises)."""
     try:
-        pool = load_pool(provider)
+        from hermes_cli.runtime_provider import _get_named_custom_provider
+        from agent.credential_pool import custom_provider_pool_key_candidates
+
+        entry = _get_named_custom_provider(provider)
+        candidates = custom_provider_pool_key_candidates(
+            entry.get("base_url"), entry.get("provider_key") or provider,
+        ) if entry else [provider]
+        for pool_key in candidates:
+            pool = load_pool(pool_key)
+            if pool and pool.has_credentials():
+                return pool
     except Exception as exc:
         logger.debug("Auxiliary client: could not load pool for %s%s: %s", provider, note, exc)
-        return None
-    return pool if pool and pool.has_credentials() else None
+    return None
 
 
 def _select_pool_entry(provider: str) -> Tuple[bool, Optional[Any]]:
@@ -3219,7 +3228,7 @@ def _contains_any(text: str, needles: Tuple[str, ...]) -> bool:
 _PAYMENT_KEYWORDS = _BILLING_PATTERNS + (
     "credits", "insufficient funds", "can only afford", "billing",
     "isn't available on the free tier", "key limit exceeded", "budget limit",
-    "requires a subscription", "upgrade for access", "upgrade for higher limits",
+    "requires a subscription", "subscription is required", "upgrade for access", "upgrade for higher limits",
     "reached your session usage limit", "quota exceeded", "quota_exceeded",
     "too many tokens per day", "daily limit", "tokens per day", "daily quota", "resource exhausted",
     "resource_exhausted", "resource-exhausted", "resourceexhausted",
@@ -3706,7 +3715,7 @@ def _recover_provider_pool(provider: str, exc: Exception, *, failed_api_key: str
     """
     normalized = _normalize_aux_provider(provider)
     try:
-        pool = load_pool(normalized)
+        pool = _load_pool_with_credentials(normalized, " (recovery)")
     except Exception as load_exc:
         logger.debug("Auxiliary client: could not load pool for %s recovery: %s", normalized, load_exc)
         return False
