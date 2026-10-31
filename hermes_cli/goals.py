@@ -1510,11 +1510,14 @@ class GoalManager:
         # goal_judge config so a broken judge can't burn the whole turn budget.
         n_tx, n_parse = state.consecutive_transport_failures, state.consecutive_parse_failures
         if n_tx >= DEFAULT_MAX_CONSECUTIVE_TRANSPORT_FAILURES:
+            from hermes_constants import display_hermes_home
+
             return self._pause_decision(
                 f"judge API unreachable {n_tx} turns in a row (check auxiliary.goal_judge provider/key in config.yaml)",
                 "continue", reason,
-                f"⏸ Goal paused — judge API returned errors ({n_tx} turns). Check the goal_judge provider/key in "
-                + _JUDGE_CONFIG_HINT.format(provider="deepseek", model="deepseek-flash"),
+                f"⏸ Goal paused — judge API returned errors ({n_tx} turns). "
+                f"Check auxiliary.goal_judge and its credentials in {display_hermes_home()}/config.yaml. "
+                "See logs/agent.log for the underlying API error, then /goal resume to continue.",
             )
         if n_parse >= DEFAULT_MAX_CONSECUTIVE_PARSE_FAILURES:
             return self._pause_decision(
